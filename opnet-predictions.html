@@ -1,0 +1,653 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>ORACLE // OPNet Prediction Terminal</title>
+<link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Bebas+Neue&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet"/>
+<style>
+  :root {
+    --bg:        #030608;
+    --surface:   #070d12;
+    --border:    #0e1f2b;
+    --orange:    #f7931a;
+    --orange2:   #ff6b00;
+    --green:     #00e5a0;
+    --red:       #ff3b5c;
+    --blue:      #1af7e0;
+    --muted:     #3a5a6e;
+    --text:      #c8dde8;
+    --dim:       #4a6a7e;
+    --font-head: 'Bebas Neue', sans-serif;
+    --font-mono: 'Space Mono', monospace;
+    --font-body: 'DM Sans', sans-serif;
+  }
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--font-body);
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+  body::before {
+    content: '';
+    position: fixed; inset: 0;
+    background: repeating-linear-gradient(0deg,transparent,transparent 2px,rgba(0,0,0,.06) 2px,rgba(0,0,0,.06) 4px);
+    pointer-events: none;
+    z-index: 9999;
+  }
+  body::after {
+    content: '';
+    position: fixed;
+    top: -200px; left: 50%; transform: translateX(-50%);
+    width: 800px; height: 400px;
+    background: radial-gradient(ellipse, rgba(247,147,26,.06) 0%, transparent 70%);
+    pointer-events: none; z-index: 0;
+  }
+
+  /* TICKER */
+  .ticker {
+    border-bottom: 1px solid var(--border);
+    overflow: hidden; height: 30px;
+    background: rgba(7,13,18,.9);
+    position: relative;
+  }
+  .ticker-inner {
+    display: flex; gap: 0;
+    animation: ticker 28s linear infinite;
+    white-space: nowrap;
+    position: absolute; top: 50%; transform: translateY(-50%);
+  }
+  @keyframes ticker { from{transform:translateX(0) translateY(-50%)} to{transform:translateX(-50%) translateY(-50%)} }
+  .tick-item {
+    font-family: var(--font-mono); font-size: 10px;
+    padding: 0 20px; display: flex; align-items: center; gap: 6px;
+    border-right: 1px solid var(--border);
+  }
+  .tick-sym{color:var(--dim)} .tick-price{color:var(--text)}
+  .tick-chg.up{color:var(--green)} .tick-chg.dn{color:var(--red)}
+
+  /* HEADER */
+  header {
+    border-bottom: 1px solid var(--border);
+    padding: 0 28px;
+    display: flex; align-items: center; justify-content: space-between;
+    height: 54px;
+    position: sticky; top: 0;
+    background: rgba(3,6,8,.96);
+    backdrop-filter: blur(12px); z-index: 100;
+  }
+  .logo {
+    font-family: var(--font-head); font-size: 26px;
+    letter-spacing: 4px; color: var(--orange);
+    text-shadow: 0 0 24px rgba(247,147,26,.5);
+  }
+  .logo span{color:var(--blue)}
+  .header-stats{display:flex;gap:28px;font-family:var(--font-mono);font-size:10px}
+  .hstat{display:flex;flex-direction:column;align-items:flex-end;gap:2px}
+  .hstat-label{color:var(--dim);text-transform:uppercase;letter-spacing:1px;font-size:9px}
+  .hstat-val{color:var(--text);font-weight:700}
+  .hstat-val.up{color:var(--green)} .hstat-val.dn{color:var(--red)}
+  .live-dot{
+    width:7px;height:7px;border-radius:50%;
+    background:var(--green);box-shadow:0 0 8px var(--green);
+    animation:pulse 1.4s infinite;display:inline-block;margin-right:5px;
+  }
+  @keyframes pulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.4;transform:scale(.8)}}
+
+  /* LAYOUT */
+  main {
+    max-width: 1300px; margin: 0 auto;
+    padding: 20px 20px;
+    display: grid;
+    grid-template-columns: 1fr 1fr 340px;
+    gap: 14px;
+    position: relative; z-index: 1;
+  }
+
+  /* PANEL */
+  .panel {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 4px; padding: 18px;
+    position: relative; overflow: hidden;
+  }
+  .panel::before {
+    content:''; position:absolute; top:0;left:0;right:0;height:2px;
+    background:linear-gradient(90deg,var(--orange),var(--orange2)); opacity:.5;
+  }
+  .panel.blue::before{background:linear-gradient(90deg,var(--blue),#1a8ff7)}
+  .panel.green::before{background:linear-gradient(90deg,var(--green),#00b37a)}
+  .panel-title {
+    font-family:var(--font-mono);font-size:9px;letter-spacing:2px;
+    text-transform:uppercase;color:var(--dim);margin-bottom:14px;
+    display:flex;align-items:center;gap:8px;
+  }
+  .panel-title::after{content:'';flex:1;height:1px;background:var(--border)}
+
+  /* PRICE PANEL */
+  .price-panel{grid-column:1/3}
+  .price-header{display:flex;align-items:flex-end;gap:14px;margin-bottom:16px}
+  .price-big{
+    font-family:var(--font-head);font-size:52px;line-height:1;
+    color:#fff;letter-spacing:2px;
+  }
+  .price-change{
+    font-family:var(--font-mono);font-size:13px;
+    padding:3px 9px;border-radius:3px;margin-bottom:6px;
+  }
+  .price-change.up{background:rgba(0,229,160,.12);color:var(--green)}
+  .price-change.dn{background:rgba(255,59,92,.12);color:var(--red)}
+
+  .chart-tabs{display:flex;gap:4px;margin-bottom:10px}
+  .chart-tab{
+    font-family:var(--font-mono);font-size:9px;padding:4px 9px;
+    border:1px solid var(--border);background:transparent;color:var(--dim);
+    cursor:pointer;border-radius:3px;letter-spacing:1px;transition:all .2s;
+  }
+  .chart-tab.active,.chart-tab:hover{border-color:var(--orange);color:var(--orange);background:rgba(247,147,26,.08)}
+
+  .chart-area{height:160px;position:relative;margin-bottom:14px}
+  canvas#btcChart{width:100%!important;height:100%!important}
+
+  .stats-row{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-bottom:12px}
+  .scard{
+    background:rgba(14,31,43,.6);border:1px solid var(--border);
+    border-radius:4px;padding:12px;
+  }
+  .scard-label{font-family:var(--font-mono);font-size:9px;letter-spacing:2px;text-transform:uppercase;color:var(--dim);margin-bottom:6px}
+  .scard-val{font-family:var(--font-head);font-size:28px;letter-spacing:1px}
+  .scard-val.bull{color:var(--green)} .scard-val.bear{color:var(--red)} .scard-val.neut{color:var(--orange)}
+  .scard-sub{font-size:10px;color:var(--dim);margin-top:3px}
+
+  .meter-wrap{margin-top:10px}
+  .meter-label{display:flex;justify-content:space-between;font-family:var(--font-mono);font-size:9px;color:var(--dim);margin-bottom:5px}
+  .meter-track{height:7px;background:rgba(255,59,92,.15);border-radius:4px;overflow:hidden}
+  .meter-fill{height:100%;border-radius:4px;background:linear-gradient(90deg,var(--red),var(--orange),var(--green));transition:width 1s cubic-bezier(.4,0,.2,1)}
+
+  /* BET PANEL — right col, spans all rows */
+  .bet-panel{grid-column:3;grid-row:1/5}
+
+  .market-item{
+    border:1px solid var(--border);border-radius:4px;
+    padding:12px;margin-bottom:10px;cursor:pointer;
+    transition:border-color .2s,background .2s;
+    position:relative;overflow:hidden;
+  }
+  .market-item:hover{border-color:var(--orange);background:rgba(247,147,26,.04)}
+  .market-item.selected{border-color:var(--orange);background:rgba(247,147,26,.06)}
+  .market-item.selected::before{
+    content:'';position:absolute;left:0;top:0;bottom:0;
+    width:3px;background:var(--orange);
+  }
+  .market-q{font-size:11px;font-weight:500;color:#fff;margin-bottom:8px;line-height:1.4}
+  .market-meta{display:flex;justify-content:space-between;font-family:var(--font-mono);font-size:8px;color:var(--dim);margin-bottom:8px}
+  .market-meta span{color:var(--text)}
+  .vote-bar{height:5px;border-radius:3px;background:var(--border);overflow:hidden;margin-bottom:6px}
+  .vote-fill{height:100%;border-radius:3px;background:linear-gradient(90deg,var(--green),#00b37a);transition:width 1s cubic-bezier(.4,0,.2,1)}
+  .vote-labels{display:flex;justify-content:space-between;font-family:var(--font-mono);font-size:9px}
+  .vote-labels .yes{color:var(--green)} .vote-labels .no{color:var(--red)}
+  .btn-row{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-top:8px}
+  .btn{
+    padding:7px;border:1px solid;border-radius:3px;
+    font-family:var(--font-mono);font-size:10px;letter-spacing:1px;
+    cursor:pointer;transition:all .15s;background:transparent;
+  }
+  .btn-up{border-color:var(--green);color:var(--green)}
+  .btn-up:hover{background:var(--green);color:#000;box-shadow:0 0 14px rgba(0,229,160,.3)}
+  .btn-dn{border-color:var(--red);color:var(--red)}
+  .btn-dn:hover{background:var(--red);color:#fff;box-shadow:0 0 14px rgba(255,59,92,.3)}
+
+  .bet-form{border-top:1px solid var(--border);padding-top:14px;margin-top:2px}
+  .bet-form-title{font-family:var(--font-mono);font-size:9px;letter-spacing:2px;text-transform:uppercase;color:var(--dim);margin-bottom:10px}
+  .form-group{margin-bottom:10px}
+  .form-label{font-family:var(--font-mono);font-size:8px;color:var(--dim);letter-spacing:1px;margin-bottom:4px;display:block}
+  .form-input{
+    width:100%;background:rgba(14,31,43,.8);border:1px solid var(--border);
+    border-radius:3px;padding:7px 10px;color:var(--text);
+    font-family:var(--font-mono);font-size:11px;outline:none;transition:border-color .2s;
+  }
+  .form-input:focus{border-color:var(--orange)}
+  .place-bet-btn{
+    width:100%;padding:12px;
+    background:linear-gradient(135deg,var(--orange),var(--orange2));
+    border:none;border-radius:3px;color:#000;
+    font-family:var(--font-head);font-size:17px;letter-spacing:3px;
+    cursor:pointer;transition:all .2s;
+    box-shadow:0 4px 18px rgba(247,147,26,.2);
+  }
+  .place-bet-btn:hover{transform:translateY(-1px);box-shadow:0 6px 26px rgba(247,147,26,.4)}
+  .place-bet-btn:active{transform:translateY(0)}
+
+  /* ORACLE */
+  .oracle-panel{grid-column:1/3}
+  .ai-badge{
+    display:inline-flex;align-items:center;gap:6px;
+    background:rgba(26,247,224,.08);border:1px solid rgba(26,247,224,.2);
+    border-radius:3px;padding:3px 9px;
+    font-family:var(--font-mono);font-size:9px;color:var(--blue);
+    letter-spacing:2px;margin-bottom:12px;
+  }
+  .oracle-text{
+    font-size:13px;line-height:1.7;color:var(--text);
+    border-left:2px solid var(--orange);padding-left:12px;margin-bottom:14px;
+  }
+  .oracle-text strong{color:#fff}
+  .signal-row{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
+  .signal{border:1px solid var(--border);border-radius:3px;padding:10px;text-align:center}
+  .signal-icon{font-size:16px;margin-bottom:5px}
+  .signal-name{font-family:var(--font-mono);font-size:8px;letter-spacing:1px;text-transform:uppercase;color:var(--dim);margin-bottom:3px}
+  .signal-val{font-family:var(--font-mono);font-size:11px;font-weight:700}
+  .bull{color:var(--green)} .bear{color:var(--red)} .neut{color:var(--orange)}
+
+  /* FEED */
+  .feed-panel{grid-column:1/3}
+  .feed-item{display:flex;gap:10px;padding:8px 0;border-bottom:1px solid var(--border);animation:fadeIn .4s ease}
+  @keyframes fadeIn{from{opacity:0;transform:translateY(-6px)}to{opacity:1;transform:none}}
+  .feed-time{font-family:var(--font-mono);font-size:9px;color:var(--dim);white-space:nowrap;margin-top:2px;min-width:44px}
+  .feed-body{font-size:11px;line-height:1.5}
+  .feed-body strong{color:#fff}
+  .feed-tag{
+    display:inline-block;font-family:var(--font-mono);font-size:8px;
+    padding:1px 5px;border-radius:2px;letter-spacing:1px;margin-right:4px;
+  }
+  .tag-btc{background:rgba(247,147,26,.15);color:var(--orange)}
+  .tag-opn{background:rgba(26,247,224,.12);color:var(--blue)}
+  .tag-ai{background:rgba(0,229,160,.1);color:var(--green)}
+
+  /* TOAST */
+  #toast{
+    position:fixed;bottom:20px;right:20px;
+    background:var(--surface);border:1px solid var(--green);
+    border-radius:4px;padding:12px 18px;
+    font-family:var(--font-mono);font-size:11px;color:var(--green);
+    box-shadow:0 8px 28px rgba(0,229,160,.2);
+    transform:translateY(80px);opacity:0;
+    transition:all .3s cubic-bezier(.4,0,.2,1);
+    z-index:1000;max-width:300px;white-space:pre-line;
+  }
+  #toast.show{transform:none;opacity:1}
+
+  @media(max-width:900px){
+    main{grid-template-columns:1fr}
+    .price-panel,.oracle-panel,.feed-panel{grid-column:1}
+    .bet-panel{grid-column:1;grid-row:auto}
+    .signal-row{grid-template-columns:1fr 1fr}
+  }
+</style>
+</head>
+<body>
+
+<div class="ticker"><div class="ticker-inner" id="tickerInner"></div></div>
+
+<header>
+  <div class="logo">ORA<span>CLE</span> // TERMINAL</div>
+  <div class="header-stats">
+    <div class="hstat">
+      <span class="hstat-label">BTC / USD</span>
+      <span class="hstat-val up" id="hBTC">$97,240</span>
+    </div>
+    <div class="hstat">
+      <span class="hstat-label">OPN / BTC</span>
+      <span class="hstat-val up" id="hOPN">0.00042</span>
+    </div>
+    <div class="hstat">
+      <span class="hstat-label">24h Vol</span>
+      <span class="hstat-val">$2.14B</span>
+    </div>
+    <div class="hstat">
+      <span class="hstat-label">Status</span>
+      <span class="hstat-val"><span class="live-dot"></span>LIVE</span>
+    </div>
+  </div>
+</header>
+
+<main>
+
+  <!-- PRICE CHART -->
+  <div class="panel price-panel">
+    <div class="panel-title">BTC / USD — Price Feed</div>
+    <div class="price-header">
+      <div class="price-big" id="priceDisplay">$97,240</div>
+      <div class="price-change up" id="priceChange">▲ +2.34%</div>
+    </div>
+    <div class="chart-tabs">
+      <button class="chart-tab active" onclick="setTab(this,'1H')">1H</button>
+      <button class="chart-tab" onclick="setTab(this,'4H')">4H</button>
+      <button class="chart-tab" onclick="setTab(this,'1D')">1D</button>
+      <button class="chart-tab" onclick="setTab(this,'1W')">1W</button>
+    </div>
+    <div class="chart-area"><canvas id="btcChart"></canvas></div>
+    <div class="stats-row">
+      <div class="scard">
+        <div class="scard-label">Fear / Greed</div>
+        <div class="scard-val neut" id="fgVal">72</div>
+        <div class="scard-sub">GREED</div>
+      </div>
+      <div class="scard">
+        <div class="scard-label">OPNet TVL</div>
+        <div class="scard-val bull">$4.2M</div>
+        <div class="scard-sub">+18% 7D</div>
+      </div>
+      <div class="scard">
+        <div class="scard-label">Active Wallets</div>
+        <div class="scard-val neut">8,412</div>
+        <div class="scard-sub">+340 today</div>
+      </div>
+    </div>
+    <div class="meter-wrap">
+      <div class="meter-label">
+        <span>BEAR</span>
+        <span id="meterPct">BULL DOMINANCE 68%</span>
+        <span>BULL</span>
+      </div>
+      <div class="meter-track">
+        <div class="meter-fill" id="meterFill" style="width:68%"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- BET PANEL -->
+  <div class="panel bet-panel">
+    <div class="panel-title">Active Markets</div>
+    <div id="marketList"></div>
+    <div class="bet-form">
+      <div class="bet-form-title">Place Your Bet</div>
+      <div class="form-group">
+        <label class="form-label">Market</label>
+        <select class="form-input" id="betMarket">
+          <option>BTC above $100K by end of week?</option>
+          <option>OPNet TVL doubles in 30 days?</option>
+          <option>BTC sets new ATH this month?</option>
+          <option>OPN/BTC up +50% in 14 days?</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Your Prediction</label>
+        <select class="form-input" id="betDir">
+          <option value="yes">YES — It will happen</option>
+          <option value="no">NO — It won't happen</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Amount (BTC)</label>
+        <input class="form-input" id="betAmt" type="number" step="0.001" min="0.001" placeholder="0.01" value="0.01"/>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Wallet (bc1q… or op1q…)</label>
+        <input class="form-input" id="betWallet" placeholder="bc1q..."/>
+      </div>
+      <button class="place-bet-btn" onclick="placeBet()">PLACE BET</button>
+      <div style="margin-top:8px;font-family:var(--font-mono);font-size:8px;color:var(--dim);text-align:center">
+        Settled on OPNet · Native BTC · No bridges
+      </div>
+    </div>
+  </div>
+
+  <!-- AI ORACLE -->
+  <div class="panel oracle-panel blue">
+    <div class="panel-title">AI Oracle — Sentiment Analysis</div>
+    <div class="ai-badge">
+      <span class="live-dot" style="background:var(--blue);box-shadow:0 0 8px var(--blue)"></span>
+      AI MODEL ACTIVE
+    </div>
+    <div class="oracle-text" id="oracleText">
+      Analyzing OPNet on-chain metrics and Bitcoin market structure...<br/><br/>
+      <strong>Signal:</strong> BTC is consolidating above the $96,800 demand zone with compressing Bollinger Bands — historically a precursor to a breakout. OPNet token flow shows <strong>net accumulation</strong> by wallets with &gt;0.1 BTC. Fear &amp; Greed at 72 (Greed) but not yet euphoric. Macro: US CPI in-line, reducing near-term rate-hike pressure.<br/><br/>
+      <strong>Probability of BTC &gt;$100K within 7 days: 61%</strong>
+    </div>
+    <div class="signal-row">
+      <div class="signal">
+        <div class="signal-icon">📈</div>
+        <div class="signal-name">Trend</div>
+        <div class="signal-val bull">BULLISH</div>
+      </div>
+      <div class="signal">
+        <div class="signal-icon">🔗</div>
+        <div class="signal-name">On-Chain</div>
+        <div class="signal-val bull">ACCUM.</div>
+      </div>
+      <div class="signal">
+        <div class="signal-icon">💬</div>
+        <div class="signal-name">Sentiment</div>
+        <div class="signal-val neut">NEUTRAL</div>
+      </div>
+      <div class="signal">
+        <div class="signal-icon">⚡</div>
+        <div class="signal-name">OPNet Flow</div>
+        <div class="signal-val bull">INFLOW</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- LIVE FEED -->
+  <div class="panel feed-panel green">
+    <div class="panel-title">Live Activity Feed</div>
+    <div id="feedList"></div>
+  </div>
+
+</main>
+
+<div id="toast"></div>
+
+<script>
+let btcPrice = 97240;
+let chartData = [];
+let selectedMarket = null;
+
+const markets = [
+  {id:0,q:'BTC above $100K by end of week?',  pool:14.2,yes:61,expiry:'3D 14H'},
+  {id:1,q:'OPNet TVL doubles in 30 days?',    pool:6.8, yes:44,expiry:'28D 2H'},
+  {id:2,q:'BTC sets new ATH this month?',     pool:22.1,yes:57,expiry:'18D 9H'},
+  {id:3,q:'OPN/BTC up +50% in 14 days?',     pool:3.3, yes:38,expiry:'12D 7H'},
+];
+const votes = markets.map(m=>({yes:m.yes}));
+
+// Ticker
+const ticks = [
+  {sym:'BTC',price:'$97,240',chg:'+2.34%',up:true},
+  {sym:'OPN',price:'0.00042 BTC',chg:'+5.12%',up:true},
+  {sym:'ETH',price:'$3,412',chg:'-0.44%',up:false},
+  {sym:'SOL',price:'$148.20',chg:'+1.22%',up:true},
+  {sym:'BNB',price:'$412.80',chg:'-0.88%',up:false},
+  {sym:'ORDI',price:'$42.14',chg:'+8.34%',up:true},
+  {sym:'RUNES',price:'$0.0082',chg:'+12.1%',up:true},
+  {sym:'SATS',price:'$0.00041',chg:'+3.2%',up:true},
+];
+function buildTicker(){
+  const inner=document.getElementById('tickerInner');
+  inner.innerHTML=[...ticks,...ticks].map(t=>`
+    <div class="tick-item">
+      <span class="tick-sym">${t.sym}</span>
+      <span class="tick-price">${t.price}</span>
+      <span class="tick-chg ${t.up?'up':'dn'}">${t.chg}</span>
+    </div>`).join('');
+}
+
+// Chart
+function genData(n=60,base=97000,vol=1000){
+  const d=[];let v=base;
+  for(let i=0;i<n;i++){v+=(Math.random()-.48)*vol;v=Math.max(v,base*.88);d.push(+v.toFixed(0))}
+  return d;
+}
+let chartCtx;
+function drawChart(data){
+  const canvas=document.getElementById('btcChart');
+  if(!canvas)return;
+  const W=canvas.offsetWidth,H=canvas.offsetHeight;
+  canvas.width=W;canvas.height=H;
+  if(!chartCtx)chartCtx=canvas.getContext('2d');
+  const ctx=chartCtx;
+  ctx.clearRect(0,0,W,H);
+  const min=Math.min(...data),max=Math.max(...data),range=max-min||1,pad=6;
+  const pts=data.map((v,i)=>({
+    x:pad+(i/(data.length-1))*(W-pad*2),
+    y:H-pad-((v-min)/range)*(H-pad*2)
+  }));
+  // fill
+  const grad=ctx.createLinearGradient(0,0,0,H);
+  grad.addColorStop(0,'rgba(247,147,26,.16)');
+  grad.addColorStop(1,'rgba(247,147,26,0)');
+  ctx.beginPath();
+  ctx.moveTo(pts[0].x,H);ctx.lineTo(pts[0].x,pts[0].y);
+  pts.slice(1).forEach(p=>ctx.lineTo(p.x,p.y));
+  ctx.lineTo(pts[pts.length-1].x,H);ctx.closePath();
+  ctx.fillStyle=grad;ctx.fill();
+  // line
+  ctx.beginPath();ctx.moveTo(pts[0].x,pts[0].y);
+  pts.slice(1).forEach(p=>ctx.lineTo(p.x,p.y));
+  ctx.strokeStyle='#f7931a';ctx.lineWidth=2;
+  ctx.shadowColor='#f7931a';ctx.shadowBlur=8;
+  ctx.stroke();ctx.shadowBlur=0;
+  // last dot
+  const last=pts[pts.length-1];
+  ctx.beginPath();ctx.arc(last.x,last.y,4,0,Math.PI*2);
+  ctx.fillStyle='#f7931a';ctx.shadowColor='#f7931a';ctx.shadowBlur=12;
+  ctx.fill();ctx.shadowBlur=0;
+  // grid
+  ctx.strokeStyle='rgba(14,31,43,.8)';ctx.lineWidth=1;
+  [.25,.5,.75].forEach(f=>{
+    const y=pad+(1-f)*(H-pad*2);
+    ctx.beginPath();ctx.moveTo(0,y);ctx.lineTo(W,y);ctx.stroke();
+    ctx.fillStyle='rgba(74,106,126,.45)';ctx.font='8px Space Mono';
+    ctx.fillText('$'+((min+range*f)/1000).toFixed(1)+'K',3,y-2);
+  });
+}
+
+function setTab(el,label){
+  document.querySelectorAll('.chart-tab').forEach(t=>t.classList.remove('active'));
+  el.classList.add('active');
+  const vols={'1H':500,'4H':1100,'1D':2200,'1W':4800};
+  chartData=genData(label==='1W'?90:60,btcPrice,vols[label]);
+  drawChart(chartData);
+}
+
+// Markets
+function renderMarkets(){
+  document.getElementById('marketList').innerHTML=markets.map((m,i)=>`
+    <div class="market-item ${selectedMarket===i?'selected':''}" onclick="selectMarket(${i})">
+      <div class="market-q">${m.q}</div>
+      <div class="market-meta">
+        <span>POOL <span>${m.pool} BTC</span></span>
+        <span>EXP <span>${m.expiry}</span></span>
+      </div>
+      <div class="vote-bar"><div class="vote-fill" style="width:${votes[i].yes}%"></div></div>
+      <div class="vote-labels">
+        <span class="yes">YES ${votes[i].yes}%</span>
+        <span class="no">NO ${100-votes[i].yes}%</span>
+      </div>
+      <div class="btn-row">
+        <button class="btn btn-up" onclick="quickVote(event,${i},'yes')">▲ YES</button>
+        <button class="btn btn-dn" onclick="quickVote(event,${i},'no')">▼ NO</button>
+      </div>
+    </div>`).join('');
+}
+
+function selectMarket(i){
+  selectedMarket=i;
+  document.getElementById('betMarket').selectedIndex=i;
+  renderMarkets();
+}
+
+function quickVote(e,i,dir){
+  e.stopPropagation();
+  if(dir==='yes') votes[i].yes=Math.min(99,votes[i].yes+Math.floor(Math.random()*3+1));
+  else votes[i].yes=Math.max(1,votes[i].yes-Math.floor(Math.random()*3+1));
+  renderMarkets();
+  addFeed(dir==='yes'
+    ?`<span class="feed-tag tag-opn">VOTE</span>Anonymous voted <strong>YES</strong> on "${markets[i].q}"`
+    :`<span class="feed-tag tag-opn">VOTE</span>Anonymous voted <strong>NO</strong> on "${markets[i].q}"`);
+}
+
+// Feed
+const feedMsgs=[
+  `<span class="feed-tag tag-btc">BTC</span>Whale moved <strong>42.3 BTC</strong> to cold storage`,
+  `<span class="feed-tag tag-ai">AI</span>Sentiment model updated — signals shifted to <strong>BULLISH</strong>`,
+  `<span class="feed-tag tag-opn">OPNet</span>New contract deployed: <strong>OP_20 token</strong> — 5M supply`,
+  `<span class="feed-tag tag-btc">BTC</span>Exchange outflow spike — <strong>14,200 BTC</strong> withdrawn`,
+  `<span class="feed-tag tag-opn">OPNet</span>DEX volume up <strong>+34%</strong> in last hour`,
+  `<span class="feed-tag tag-ai">AI</span>On-chain accumulation score: <strong>8.4/10</strong> (bullish threshold)`,
+  `<span class="feed-tag tag-btc">BTC</span>Mempool congestion <strong>low</strong> — avg fee 4 sat/vB`,
+  `<span class="feed-tag tag-opn">OPNet</span>Prediction pool reached <strong>22 BTC</strong>`,
+];
+
+function addFeed(msg){
+  const list=document.getElementById('feedList');
+  const t=new Date();
+  const ts=t.getHours().toString().padStart(2,'0')+':'+t.getMinutes().toString().padStart(2,'0')+':'+t.getSeconds().toString().padStart(2,'0');
+  const item=document.createElement('div');
+  item.className='feed-item';
+  item.innerHTML=`<div class="feed-time">${ts}</div><div class="feed-body">${msg}</div>`;
+  list.prepend(item);
+  while(list.children.length>8)list.removeChild(list.lastChild);
+}
+
+// Place bet
+function placeBet(){
+  const market=document.getElementById('betMarket').value;
+  const dir=document.getElementById('betDir').value;
+  const amt=parseFloat(document.getElementById('betAmt').value)||0;
+  const wallet=document.getElementById('betWallet').value.trim();
+  if(!wallet){showToast('⚠ Please enter your wallet address');return}
+  if(amt<=0){showToast('⚠ Enter a valid BTC amount');return}
+  showToast(`✓ Bet placed!\n${amt} BTC on ${dir.toUpperCase()}\n"${market}"\n\nPending OPNet confirmation...`);
+  addFeed(`<span class="feed-tag tag-opn">BET</span>New bet: <strong>${amt} BTC</strong> on <strong>${dir.toUpperCase()}</strong>`);
+  const idx=document.getElementById('betMarket').selectedIndex;
+  if(markets[idx]){
+    markets[idx].pool=+(markets[idx].pool+amt).toFixed(3);
+    votes[idx].yes=dir==='yes'?Math.min(99,votes[idx].yes+1):Math.max(1,votes[idx].yes-1);
+    renderMarkets();
+  }
+}
+
+function showToast(msg){
+  const t=document.getElementById('toast');
+  t.textContent=msg;t.classList.add('show');
+  setTimeout(()=>t.classList.remove('show'),3800);
+}
+
+// Live tick
+function tick(){
+  btcPrice=Math.max(90000,btcPrice+(Math.random()-.495)*80);
+  const pct=(btcPrice-95200)/95200*100,up=pct>=0;
+  document.getElementById('priceDisplay').textContent='$'+btcPrice.toLocaleString('en-US',{maximumFractionDigits:0});
+  document.getElementById('hBTC').textContent='$'+btcPrice.toLocaleString('en-US',{maximumFractionDigits:0});
+  const pcEl=document.getElementById('priceChange');
+  pcEl.textContent=(up?'▲ +':'▼ ')+Math.abs(pct).toFixed(2)+'%';
+  pcEl.className='price-change '+(up?'up':'dn');
+  document.getElementById('hBTC').className='hstat-val '+(up?'up':'dn');
+  chartData.push(+btcPrice.toFixed(0));
+  if(chartData.length>80)chartData.shift();
+  drawChart(chartData);
+  const bm=parseFloat(document.getElementById('meterFill').style.width)||68;
+  const nbm=Math.min(92,Math.max(15,bm+(Math.random()-.5)*2.5));
+  document.getElementById('meterFill').style.width=nbm+'%';
+  document.getElementById('meterPct').textContent='BULL DOMINANCE '+nbm.toFixed(0)+'%';
+}
+
+// Oracle rotation
+const oracleCopy=[
+  `Analyzing OPNet on-chain metrics and Bitcoin market structure...<br/><br/><strong>Signal:</strong> BTC consolidating above the $96,800 demand zone — Bollinger Bands compressing. OPNet token flow shows <strong>net accumulation</strong> by wallets with &gt;0.1 BTC. Fear &amp; Greed at 72 but not euphoric.<br/><br/><strong>Probability BTC &gt;$100K within 7 days: 61%</strong>`,
+  `On-chain UTXO age bands show <strong>long-term holders are NOT selling</strong> — historically strong support. OPNet contract deployments up 40% week-over-week. Social sentiment: 68% positive mentions.<br/><br/><strong>AI Composite Score: 7.2/10 — Bullish Bias</strong>`,
+  `Detecting <strong>exchange reserve drawdown</strong> — BTC supply on exchanges at 2-year low. OPNet DEX volume trending upward, signaling ecosystem momentum.<br/><br/><strong>3-day target: BTC likely to test $99,200–$101,400 range</strong>`,
+];
+let oIdx=0;
+function rotateOracle(){
+  oIdx=(oIdx+1)%oracleCopy.length;
+  document.getElementById('oracleText').innerHTML=oracleCopy[oIdx];
+}
+
+// Init
+buildTicker();
+chartData=genData(60,btcPrice,900);
+drawChart(chartData);
+renderMarkets();
+feedMsgs.slice(0,5).forEach((m,i)=>setTimeout(()=>addFeed(m),i*200));
+setInterval(tick,1800);
+setInterval(()=>addFeed(feedMsgs[Math.floor(Math.random()*feedMsgs.length)]),5000);
+setInterval(rotateOracle,12000);
+window.addEventListener('resize',()=>drawChart(chartData));
+</script>
+</body>
+</html>
