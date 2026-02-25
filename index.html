@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Prediction Market</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>🎯 Prediction Market</h1>
+            <p class="subtitle">Make predictions on future events</p>
+        </header>
+
+        <main>
+            <section class="markets-section">
+                <h2>Active Markets</h2>
+                <div id="markets-list" class="markets-list">
+                    <p class="loading">Loading markets...</p>
+                </div>
+            </section>
+
+            <section class="create-market-section">
+                <h2>Create New Market</h2>
+                <form id="create-market-form">
+                    <div class="form-group">
+                        <label for="question">Question:</label>
+                        <input type="text" id="question" name="question" required 
+                               placeholder="e.g., Will it rain tomorrow?">
+                    </div>
+                    <div class="form-group">
+                        <label for="closeDate">Close Date:</label>
+                        <input type="datetime-local" id="closeDate" name="closeDate" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="outcomes">Outcomes (comma-separated):</label>
+                        <input type="text" id="outcomes" name="outcomes" required 
+                               placeholder="e.g., Yes, No">
+                    </div>
+                    <button type="submit" class="btn btn-primary">Create Market</button>
+                </form>
+            </section>
+        </main>
+    </div>
+
+    <!-- Prediction Modal -->
+    <div id="prediction-modal" class="modal">
+        <div class="modal-content">
+            <span class="close">&times;</span>
+            <h2 id="modal-market-question"></h2>
+            <form id="prediction-form">
+                <input type="hidden" id="modal-market-id">
+                <div class="form-group">
+                    <label for="userId">Your Name:</label>
+                    <input type="text" id="userId" name="userId" required 
+                           placeholder="Enter your name">
+                </div>
+                <div class="form-group">
+                    <label for="outcome">Select Outcome:</label>
+                    <select id="outcome" name="outcome" required>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="amount">Amount:</label>
+                    <input type="number" id="amount" name="amount" min="1" required 
+                           placeholder="Enter amount">
+                </div>
+                <button type="submit" class="btn btn-primary">Place Prediction</button>
+            </form>
+        </div>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+</html>

@@ -1,0 +1,13 @@
+{
+  "name": "prediction-market",
+  "version": "1.0.0",
+  "description": "A simple prediction market application",
+  "main": "index.js",
+  "scripts": {
+    "start": "node server.js",
+    "test": "node test.js"
+  },
+  "keywords": ["prediction", "market", "betting"],
+  "author": "",
+  "license": "MIT"
+}
